@@ -29,6 +29,8 @@ import org.openjdk.jmh.infra.Control;
 import org.openjdk.jmh.infra.IterationParams;
 import org.openjdk.jmh.util.Utils;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,6 +40,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * This is the rendezvous class for benchmark handler and JMH.
  */
 public class InfraControl extends InfraControlL4 {
+
+    public static final VarHandle VH_DONE;
 
     /**
      * Do the class hierarchy trick to evade false sharing, and check if it's working in runtime.
@@ -53,6 +57,12 @@ public class InfraControl extends InfraControlL4 {
         Utils.check(InfraControl.class, "warmupDone", "warmdownDone");
         Utils.check(InfraControl.class, "benchmarkParams", "iterationParams");
         Utils.check(InfraControl.class, "shouldSynchIterations", "threads");
+
+        try {
+            VH_DONE = MethodHandles.lookup().findVarHandle(InfraControlL2.class, "isDone", boolean.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public InfraControl(BenchmarkParams benchmarkParams, IterationParams iterationParams,
@@ -133,6 +143,7 @@ abstract class InfraControlL1 extends InfraControlL0 {
 }
 
 abstract class InfraControlL2 extends InfraControlL1 {
+
     /**
      * Flag that checks for time expiration.
      * This is specifically the public field, so to spare one virtual call.

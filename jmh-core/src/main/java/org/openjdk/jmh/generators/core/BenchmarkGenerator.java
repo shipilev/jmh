@@ -661,7 +661,7 @@ public class BenchmarkGenerator {
             invocationEpilog(writer, 3, method, states, true);
 
             writer.println(ident(3) + "operations++;");
-            writer.println(ident(2) + "} while(!control.isDone);");
+            writer.println(ident(2) + "} while(!(boolean)InfraControl.VH_DONE.getOpaque(control));");
             writer.println(ident(2) + "result.stopTime = System.nanoTime();");
             writer.println(ident(2) + "result.realTime = realTime;");
             writer.println(ident(2) + "result.measuredOps = operations;");
@@ -792,7 +792,7 @@ public class BenchmarkGenerator {
             invocationEpilog(writer, 3, method, states, true);
 
             writer.println(ident(3) + "operations++;");
-            writer.println(ident(2) + "} while(!control.isDone);");
+            writer.println(ident(2) + "} while(!(boolean)InfraControl.VH_DONE.getOpaque(control));");
             writer.println(ident(2) + "result.stopTime = System.nanoTime();");
             writer.println(ident(2) + "result.realTime = realTime;");
             writer.println(ident(2) + "result.measuredOps = operations;");
@@ -973,7 +973,7 @@ public class BenchmarkGenerator {
             invocationEpilog(writer, 3, method, states, true);
 
             writer.println(ident(3) + "operations++;");
-            writer.println(ident(2) + "} while(!control.isDone);");
+            writer.println(ident(2) + "} while(!(boolean)InfraControl.VH_DONE.getOpaque(control));");
             writer.println(ident(2) + "startRndMask = Math.max(startRndMask, rndMask);");
 
             writer.println(ident(2) + "result.realTime = realTime;");
