@@ -317,44 +317,40 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
 
             Multiset<String> counts = new HashMultiset<>();
             for (String key : events.keys()) {
-                Collection<Long> orig = events.get(key);
+                Collection<Long> originalCounts = events.get(key);
 
                 if (isRobust) {
-                    /*
-                      Robust estimator. If enabled, deal with the outliers:
-                        1) Assume the benchmark is at steady state for the most of the run.
-                        2) Compute the trimmed mean, ignoring the lowest/highest outliers.
-                        3) From the trimmed mean, compute the "smoothed" total event count.
-                    */
+                    // Compute the robust sample population, ignoring the lowest/highest outliers.
 
-                    List<Long> robust = new ArrayList<>(orig);
-                    Collections.sort(robust);
+                    List<Long> sorted = new ArrayList<>(originalCounts);
+                    Collections.sort(sorted);
 
-//                    System.out.println(key + ", orig: " + robust);
-
-                    int from = (int) Math.ceil(robust.size() * robustPercent / 100);
-                    int to = (int) Math.floor(robust.size() * (100 - robustPercent) / 100);
-                    if (to > robust.size()) {
-                        to = robust.size();
+                    int origSize = sorted.size();
+                    int from = (int) Math.ceil(origSize * robustPercent / 100);
+                    int to = (int) Math.floor(origSize * (100 - robustPercent) / 100);
+                    if (to > origSize) {
+                        to = origSize;
                     }
                     if (from > to) {
                         from = to;
                     }
-                    robust = robust.subList(from, to);
+                    List<Long> robust = sorted.subList(from, to);
+                    int robustSize = robust.size();
 
-//                    System.out.println(key + ", filtered: " + robust);
-
+                    // Add up all the robust samples
                     double s = 0;
-                    for (Long v : robust) {
+                    for (long v : robust) {
                         s += v;
                     }
-                    long avg = (long)(s / robust.size());
-                    int add = orig.size() - robust.size();
-                    s += avg * add;
+
+                    // Replace the outliers with average samples
+                    double avg = s / robustSize;
+                    s += avg * (origSize - robustSize);
+
                     counts.add(key, (long)s);
                 } else {
                     double s = 0;
-                    for (Long v : orig) {
+                    for (long v : originalCounts) {
                         s += v;
                     }
                     counts.add(key, (long)s);
