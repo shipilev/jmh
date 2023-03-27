@@ -60,9 +60,10 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
     private final int delayMs;
     private final int lengthMs;
     private final boolean useDefaultStats;
-    private final long highPassFilter;
     private final int incrementInterval;
     private final boolean isIncrementable;
+    private final boolean isRobust;
+    private final double robustPercent;
 
     private final Collection<String> supportedEvents = new ArrayList<>();
 
@@ -87,9 +88,15 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
                         "Lower values may improve accuracy, while increasing the profiling overhead.")
                 .withRequiredArg().ofType(Integer.class).describedAs("ms").defaultsTo(100);
 
-        OptionSpec<Long> optHighPassFilter = parser.accepts("highPassFilter",
-                        "Ignore event increments larger that this.")
-                .withRequiredArg().ofType(Long.class).describedAs("#").defaultsTo(100_000_000_000L);
+        OptionSpec<Boolean> optRobust = parser.accepts("robust",
+                        "Use \"perf stat -d -d -d\" instead of explicit counter list.")
+                .withRequiredArg().ofType(Boolean.class).describedAs("bool").defaultsTo(true);
+
+        OptionSpec<Double> optRobustPercent = parser.accepts("robustPercent",
+                        "Throw away this percent of lowest and highest samples. This alleviates " +
+                                "the occasional outliers, as well as the overhead for infrastructure code" +
+                                "for small benchmarks.")
+                .withRequiredArg().ofType(Double.class).describedAs("percent").defaultsTo(5D);
 
         OptionSpec<Boolean> optDefaultStat = parser.accepts("useDefaultStat",
                         "Use \"perf stat -d -d -d\" instead of explicit counter list.")
@@ -103,7 +110,8 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
             delayMs = set.valueOf(optDelay);
             lengthMs = set.valueOf(optLength);
             incrementInterval = set.valueOf(optIncrementInterval);
-            highPassFilter = set.valueOf(optHighPassFilter);
+            isRobust = set.valueOf(optRobust);
+            robustPercent = set.valueOf(optRobustPercent);
             useDefaultStats = set.valueOf(optDefaultStat);
             userEvents = set.valuesOf(optEvents);
         } catch (OptionException e) {
@@ -180,7 +188,7 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
     }
 
     private Collection<? extends Result> process(BenchmarkResult br, File stdOut, File stdErr) {
-        Multiset<String> events = new HashMultiset<>();
+        Multimap<String, Long> events = new HashMultimap<>();
 
         try (FileReader fr = new FileReader(stdErr);
              BufferedReader reader = new BufferedReader(fr)) {
@@ -271,22 +279,14 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
 
                         // Defensive, keep multiplier in bounds:
                         multiplier = Math.max(1D, Math.min(0D, multiplier));
+
+                        // Compute momentary throughput
+                        // TODO: Use the time from the actual events. Requires capturing the previous one.
+                        long lValue = nf.parse(count).longValue();
+                        events.put(event, (long)(lValue * multiplier));
                     } catch (ParseException e) {
                         // don't care then, continue
                         continue nextline;
-                    }
-
-                    try {
-                        long lValue = nf.parse(count).longValue();
-                        if (lValue > highPassFilter) {
-                            // anomalous value, pretend we did not see it
-                            continue nextline;
-                        }
-                        events.add(event, (long) (lValue * multiplier));
-                    } catch (ParseException e) {
-                        // do nothing, continue
-                        continue nextline;
-
                     }
                 } else {
                     int idx = line.lastIndexOf(",");
@@ -299,7 +299,7 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
 
                     try {
                         long lValue = nf.parse(count).longValue();
-                        events.add(event, lValue);
+                        events.put(event, lValue);
                     } catch (ParseException e) {
                         // do nothing, continue
                         continue nextline;
@@ -315,6 +315,46 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
                         "Therefore, perf performance data includes benchmark warmup.");
             }
 
+            Multiset<String> counts = new HashMultiset<>();
+            for (String key : events.keys()) {
+                Collection<Long> orig = events.get(key);
+
+                if (isRobust) {
+                    /*
+                      Robust estimator. If enabled, deal with the outliers:
+                        1) Assume the benchmark is at steady state for the most of the run.
+                        2) Compute the trimmed mean, ignoring the lowest/highest outliers.
+                        3) From the trimmed mean, compute the "smoothed" total event count.
+                    */
+
+                    List<Long> robust = new ArrayList<>(orig);
+                    Collections.sort(robust);
+                    int from = (int) Math.ceil(robust.size() * robustPercent / 100);
+                    int to = (int) Math.floor(robust.size() * (100 - robustPercent) / 100);
+                    if (to > robust.size()) {
+                        to = robust.size();
+                    }
+                    if (from > to) {
+                        from = to;
+                    }
+                    robust = robust.subList(from, to);
+
+                    double s = 0;
+                    for (Long v : robust) {
+                        s += v;
+                    }
+                    long avg = (long)(s / robust.size());
+                    s += avg * (orig.size() - robust.size());
+                    counts.add(key, (long)s);
+                } else {
+                    double s = 0;
+                    for (Long v : orig) {
+                        s += v;
+                    }
+                    counts.add(key, (long)s);
+                }
+            }
+
             long totalOpts;
 
             BenchmarkResultMetaData md = br.getMetadata();
@@ -326,13 +366,13 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
                 }
                 Collection<Result> results = new ArrayList<>();
                 for (String key : events.keys()) {
-                    results.add(new PerfResult(key, "#/op", events.count(key) * 1.0 / totalOpts));
+                    results.add(new PerfResult(key, "#/op", counts.count(key) * 1.0 / totalOpts));
                 }
 
                 // Also figure out IPC/CPI, if enough counters available:
                 {
-                    long cycles = events.count("cycles");
-                    long instructions = events.count("instructions");
+                    long cycles = counts.count("cycles");
+                    long instructions = counts.count("instructions");
                     if (cycles != 0 && instructions != 0) {
                         results.add(new PerfResult("CPI", "clks/insn", 1.0 * cycles / instructions));
                         results.add(new PerfResult("IPC", "insns/clk", 1.0 * instructions / cycles));
