@@ -96,7 +96,7 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
                         "Throw away this percent of lowest and highest samples. This alleviates " +
                                 "the occasional outliers, as well as the overhead for infrastructure code" +
                                 "for small benchmarks.")
-                .withRequiredArg().ofType(Double.class).describedAs("percent").defaultsTo(5D);
+                .withRequiredArg().ofType(Double.class).describedAs("percent").defaultsTo(15D);
 
         OptionSpec<Boolean> optDefaultStat = parser.accepts("useDefaultStat",
                         "Use \"perf stat -d -d -d\" instead of explicit counter list.")
@@ -329,6 +329,9 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
 
                     List<Long> robust = new ArrayList<>(orig);
                     Collections.sort(robust);
+
+//                    System.out.println(key + ", orig: " + robust);
+
                     int from = (int) Math.ceil(robust.size() * robustPercent / 100);
                     int to = (int) Math.floor(robust.size() * (100 - robustPercent) / 100);
                     if (to > robust.size()) {
@@ -339,12 +342,15 @@ public class LinuxPerfNormProfiler implements ExternalProfiler {
                     }
                     robust = robust.subList(from, to);
 
+//                    System.out.println(key + ", filtered: " + robust);
+
                     double s = 0;
                     for (Long v : robust) {
                         s += v;
                     }
                     long avg = (long)(s / robust.size());
-                    s += avg * (orig.size() - robust.size());
+                    int add = orig.size() - robust.size();
+                    s += avg * add;
                     counts.add(key, (long)s);
                 } else {
                     double s = 0;
