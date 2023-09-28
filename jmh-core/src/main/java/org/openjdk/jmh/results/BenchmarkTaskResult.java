@@ -39,11 +39,16 @@ public class BenchmarkTaskResult {
      */
     private final long measuredOperations;
 
+    private final long measurementStart;
+    private final long measurementEnd;
+
     private final Collection<Result> results;
 
-    public BenchmarkTaskResult(long allOperations, long measuredOperations) {
+    public BenchmarkTaskResult(long allOperations, long measuredOperations, long measurementStart, long measurementEnd) {
         this.allOperations = allOperations;
         this.measuredOperations = measuredOperations;
+        this.measurementStart = measurementStart;
+        this.measurementEnd = measurementEnd;
         this.results = new ArrayList<>();
     }
 
@@ -61,5 +66,18 @@ public class BenchmarkTaskResult {
 
     public long getMeasuredOps() {
         return measuredOperations;
+    }
+
+    public long measurementStart() {
+        return measurementStart;
+    }
+
+    public long measurementEnd() {
+        return measurementEnd;
+    }
+
+    @Override
+    public String toString() {
+        return "ops = " + measuredOperations + ", results = " + results + "; start = " + measurementStart + ", end = " + measurementEnd;
     }
 }

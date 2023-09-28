@@ -399,16 +399,12 @@ class BenchmarkHandler {
 
         // Process the results: we get here after all worker threads have quit,
         // either normally or abnormally. This means, Future.get() would never block.
-        long allOps = 0;
-        long measuredOps = 0;
 
+        List<BenchmarkTaskResult> results = new ArrayList<>();
         List<Throwable> errors = new ArrayList<>();
         for (Future<BenchmarkTaskResult> fr : completed) {
             try {
-                BenchmarkTaskResult btr = fr.get();
-                iterationResults.addAll(btr.getResults());
-                allOps += btr.getAllOps();
-                measuredOps += btr.getMeasuredOps();
+                results.add(fr.get());
             } catch (ExecutionException ex) {
                 // Unwrap at most three exceptions through benchmark-thrown exception:
                 //  ExecutionException -> Throwable-wrapper -> InvocationTargetException
@@ -429,6 +425,18 @@ class BenchmarkHandler {
             }
         }
 
+        // Go over all results, filter the reliable onces, compute total and measured ops counts.
+        long allOps = 0;
+        for (BenchmarkTaskResult btr : results) {
+            allOps += btr.getAllOps();
+        }
+
+        long measuredOps = 0;
+        for (BenchmarkTaskResult btr : selectIntersecting(results)) {
+            iterationResults.addAll(btr.getResults());
+            measuredOps += btr.getMeasuredOps();
+        }
+
         IterationResult result = new IterationResult(benchmarkParams, params, new IterationResultMetaData(allOps, measuredOps));
         result.addResults(iterationResults);
 
@@ -438,6 +446,105 @@ class BenchmarkHandler {
 
         if (!errors.isEmpty()) {
             throw new BenchmarkException("Benchmark error during the run", errors);
+        }
+
+        return result;
+    }
+
+    static class Event {
+        long timestamp;
+        int direction;
+        public Event(long timestamp, int direction) {
+            this.timestamp = timestamp;
+            this.direction = direction;
+        }
+        public long timestamp() {
+            return timestamp;
+        }
+        public int direction() { return direction; }
+    }
+
+    /*
+     * Figures out which results can be trusted for aggregation. The aggregation code assumes that
+     * results are from benchmark threads executing in parallel. Synchronize iterations help to maintain
+     * that assumption by running dummy benchmark loops at the start/end of the benchmark loop.
+     * However, due to timing, scheduler (un)fairness or other effects, benchmark tasks can still
+     * execute without overlap, even with synchronize iterations. This would skew the aggregation.
+     *
+     * This code mitigates the effects by selecting the subset of benchmark results that intersect
+     * the most. This can discard some benchmark results. For non-empty original list, there is always
+     * at least one benchmark result returned.
+     */
+    public static List<BenchmarkTaskResult> selectIntersecting(List<BenchmarkTaskResult> src) {
+        // Figure out the interval with the largest result intersection.
+
+        List<Event> events = new ArrayList<>();
+        for (BenchmarkTaskResult btr : src) {
+            System.out.println(btr.measurementStart() + " " + btr.measurementEnd());
+            events.add(new Event(btr.measurementStart(), +1));
+            events.add(new Event(btr.measurementEnd(),   -1));
+        }
+
+        events.sort(Comparator.comparing(Event::timestamp).thenComparing(Event::direction));
+
+        long maxStart = 0;
+        long maxEnd = 0;
+
+        int max = 0;
+        int cur = 0;
+        for (Event event : events) {
+            System.out.print(" " + event.timestamp() + ": ");
+            if (event.direction > 0) {
+                cur++;
+                if (max <= cur) {
+                    max = cur;
+                    maxStart = event.timestamp;
+                }
+                System.out.print("+");
+            } else {
+                cur--;
+                maxEnd = event.timestamp;
+                System.out.print("-");
+            }
+            System.out.println(" " + cur + " " + max + " [" + maxStart + ", " + maxEnd + "]");
+        }
+
+        // We now want to take only those benchmark results that are intersecting with
+        // the largest found interval.
+
+        System.out.println("Largest interval: " + maxStart + " " + maxEnd);
+
+        List<BenchmarkTaskResult> result = new ArrayList<>();
+        for (BenchmarkTaskResult btr : src) {
+            long start = btr.measurementStart();
+            long end = btr.measurementEnd();
+
+            if (maxStart <= start && end <= maxEnd) {
+                // Completely covered
+                result.add(btr);
+            } else if (maxStart < end && end <= maxEnd) {
+                // Tail is in interval
+                result.add(btr);
+            } else if (maxStart <= start && start < maxEnd) {
+                // Head is in interval
+                result.add(btr);
+            } else if (start < maxStart && maxEnd < end) {
+                // Completely covers the interval
+                result.add(btr);
+            }
+        }
+
+        for (BenchmarkTaskResult btr : result) {
+            System.out.println("Selected: "  + btr.measurementStart() + " " + btr.measurementEnd());
+        }
+
+        if (!src.isEmpty() && result.isEmpty()) {
+            throw new IllegalStateException("Should select at least one benchmark task result");
+        }
+
+        if (max != result.size()) {
+            System.out.println("ERROR: " + max + " != " + result.size());
+            throw new IllegalStateException("Max intersect count (" + max + ") and the resulting number of tasks (" + result.size() + ") do not match");
         }
 
         return result;

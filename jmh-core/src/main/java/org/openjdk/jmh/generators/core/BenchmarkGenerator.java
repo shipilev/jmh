@@ -626,7 +626,7 @@ public class BenchmarkGenerator {
             writer.println(ident(3) + "res.measuredOps *= opsPerInv;");
             writer.println(ident(3) + "res.measuredOps /= batchSize;");
 
-            writer.println(ident(3) + "BenchmarkTaskResult results = new BenchmarkTaskResult((long)res.allOps, (long)res.measuredOps);");
+            writer.println(ident(3) + "BenchmarkTaskResult results = new BenchmarkTaskResult((long)res.allOps, (long)res.measuredOps, res.startTime, res.stopTime);");
             if (isSingleMethod) {
                 writer.println(ident(3) + "results.add(new ThroughputResult(ResultRole.PRIMARY, \"" + method.getName() + "\", res.measuredOps, res.getTime(), benchmarkParams.getTimeUnit()));");
             } else {
@@ -760,7 +760,7 @@ public class BenchmarkGenerator {
             writer.println(ident(3) + "res.measuredOps *= opsPerInv;");
             writer.println(ident(3) + "res.measuredOps /= batchSize;");
 
-            writer.println(ident(3) + "BenchmarkTaskResult results = new BenchmarkTaskResult((long)res.allOps, (long)res.measuredOps);");
+            writer.println(ident(3) + "BenchmarkTaskResult results = new BenchmarkTaskResult((long)res.allOps, (long)res.measuredOps, res.startTime, res.stopTime);");
             if (isSingleMethod) {
                 writer.println(ident(3) + "results.add(new AverageTimeResult(ResultRole.PRIMARY, \"" + method.getName() + "\", res.measuredOps, res.getTime(), benchmarkParams.getTimeUnit()));");
             } else {
@@ -919,7 +919,7 @@ public class BenchmarkGenerator {
             writer.println(ident(3) + "res.allOps /= batchSize;");
             writer.println(ident(3) + "res.measuredOps *= opsPerInv;");
 
-            writer.println(ident(3) + "BenchmarkTaskResult results = new BenchmarkTaskResult((long)res.allOps, (long)res.measuredOps);");
+            writer.println(ident(3) + "BenchmarkTaskResult results = new BenchmarkTaskResult((long)res.allOps, (long)res.measuredOps, res.startTime, res.stopTime);");
             if (isSingleMethod) {
                 writer.println(ident(3) + "results.add(new SampleTimeResult(ResultRole.PRIMARY, \"" + method.getName() + "\", buffer, benchmarkParams.getTimeUnit()));");
             } else {
@@ -1028,7 +1028,7 @@ public class BenchmarkGenerator {
             writer.println(ident(3) + "int opsPerInv = control.benchmarkParams.getOpsPerInvocation();");
             writer.println(ident(3) + "long totalOps = opsPerInv;");
 
-            writer.println(ident(3) + "BenchmarkTaskResult results = new BenchmarkTaskResult(totalOps, totalOps);");
+            writer.println(ident(3) + "BenchmarkTaskResult results = new BenchmarkTaskResult(totalOps, totalOps, res.startTime, res.stopTime);");
             if (isSingleMethod) {
                 writer.println(ident(3) + "results.add(new SingleShotResult(ResultRole.PRIMARY, \"" + method.getName() + "\", res.getTime(), totalOps, benchmarkParams.getTimeUnit()));");
             } else {
