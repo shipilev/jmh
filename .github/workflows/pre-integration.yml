@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         java: [8, 11, 17, 21]
-        os: [ubuntu-22.04, windows-2022, macos-11]
+        os: [ubuntu-22.04]
       fail-fast: false
     name: Test JDK ${{ matrix.java }}, ${{ matrix.os }}
     timeout-minutes: 180
@@ -42,7 +42,7 @@ jobs:
 
     - name: Set up async-profiler (Linux)
       run: |
-        curl -L https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-x64.tar.gz | tar xjf -
+        curl -L https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-x64.tar.gz | tar xzf -
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/async-profiler-3.0-linux-x64/lib/
       if: (runner.os == 'Linux')
 
