@@ -18,15 +18,20 @@ jobs:
       matrix:
         java: [8, 11, 17, 21]
         os: [ubuntu-latest, windows-latest, macos-latest]
-        mode: [default, reflection, asm]
-      matrix:
-        java: [8, 11, 17, 21]
-        os: [ubuntu-latest]
-        mode: [executor-fjp, executor-custom]
-      matrix:
-        java: [21]
-        os: [ubuntu-latest]
-        mode: [executor-virtual]
+        mode: [default, reflection, asm, executor-fjp, executor-custom]
+        exclude:
+          - os: windows-latest
+            mode: executor-fjp
+          - os: windows-latest
+            mode: executor-custom
+          - os: macos-latest
+            mode: executor-fjp
+          - os: macos-latest
+            mode: executor-custom
+        include:
+          - os: ubuntu-latest
+            java: 21
+            mode: executor-virtual
       fail-fast: false
     name: Test JDK ${{ matrix.java }}, ${{ matrix.os }}, ${{ matrix.mode }}
     timeout-minutes: 180
