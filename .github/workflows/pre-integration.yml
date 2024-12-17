@@ -19,8 +19,15 @@ jobs:
         java: [8, 11, 17, 21]
         os: [ubuntu-latest, windows-latest, macos-latest]
         mode: [default, reflection, asm, executor-fjp, executor-custom, executor-virtual]
+        exclude:
+          - os: windows-latest
+            mode: [executor-fjp, executor-custom, executor-virtual]
+          - os: macos-latest
+            mode: [executor-fjp, executor-custom, executor-virtual]
+          - java: [8, 11, 17]
+            mode: [executor-virtual]
       fail-fast: false
-    name: Test JDK ${{ matrix.java }}, ${{ matrix.os }}
+    name: Test JDK ${{ matrix.java }}, ${{ matrix.os }}, ${{ matrix.mode }}
     timeout-minutes: 180
 
     steps:
@@ -69,4 +76,4 @@ jobs:
 
     - name: Build with tests (Virtual Executor)
       run: mvn clean install -P executor-virtual -B --file pom.xml
-      if: (matrix.mode == 'executor-virtual') && (matrix.java == '21')
+      if: (matrix.mode == 'executor-virtual')
