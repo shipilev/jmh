@@ -21,10 +21,12 @@ jobs:
         mode: [default, reflection, asm]
         include:
           - os: ubuntu-latest
-            mode: [executor-fjp, executor-custom]
+            mode: executor-fjp
           - os: ubuntu-latest
-            java: [21]
-            mode: [executor-virtual]
+            mode: executor-custom
+          - os: ubuntu-latest
+            mode: executor-virtual
+            java: 21
       fail-fast: false
     name: Test JDK ${{ matrix.java }}, ${{ matrix.os }}, ${{ matrix.mode }}
     timeout-minutes: 180
