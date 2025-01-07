@@ -198,6 +198,9 @@ public class LayouterGapsSim {
             for (Gap g : gaps) {
                 s += g.size;
             }
+            if (lastOffset > 0) {
+                s += (MAX_ALLOC - lastOffset);
+            }
             return s;
         }
     }
