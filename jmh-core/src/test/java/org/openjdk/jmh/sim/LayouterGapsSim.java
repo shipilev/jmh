@@ -5,16 +5,12 @@ import java.util.*;
 
 public class LayouterGapsSim {
 
-    public static void main(String... args) {
-        generate();
-    }
-
-    static final int MAX_ALLOC = 16;
+    static final int MAX_ALLOC = 8;
 
     static final Set<State> STATES = new HashSet<>();
     static final Set<Edge> EDGES = new HashSet<>();
 
-    public static void generate() {
+    public static void main(String... args) {
         Set<State> prevStates = new HashSet<>();
         prevStates.add(new State(Collections.emptyList(), 0));
 
@@ -39,14 +35,32 @@ public class LayouterGapsSim {
 
         out.println("digraph {");
         for (Edge s : EDGES) {
-            out.println("  \"" + s.from + "\" -> \"" + s.to + "\" [label=\"alloc(" + s.alloc + ")\"];");
+            out.println("  \"" + s.from + "\" -> \"" + s.to + "\" [color=\"" + allocToColor(s.alloc) + "\"];");
         }
         out.println("}");
 
+        int[] gapStats = new int[MAX_ALLOC];
         for (State s : STATES) {
-            if (s.totalGaps() >= MAX_ALLOC) {
+            int t = s.totalGaps();
+            if (t >= MAX_ALLOC) {
                 throw new IllegalStateException("Found a state with too many gaps: " + s);
             }
+            gapStats[t]++;
+        }
+
+        out.println("Gaps histogram:");
+        for (int a = 0; a < MAX_ALLOC; a++) {
+            out.println(" " + a + ": " + gapStats[a]);
+        }
+    }
+
+    static final String allocToColor(int alloc) {
+        switch (alloc) {
+            case 1: return "green";
+            case 2: return "blue";
+            case 4: return "orange";
+            case 8: return "red";
+            default: return "black";
         }
     }
 
