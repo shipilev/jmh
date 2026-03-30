@@ -95,8 +95,10 @@ public class PerfAsmMethodParsingTest {
 
             // Added by JDK-8316178
             checkFor(methods, "runtime stub: ExceptionBlob");
-            checkFor(methods, "runtime stub: _complete_monitor_locking");
             checkFor(methods, "runtime stub: StackOverflowError throw_exception");
+
+            checkFor(methods, "runtime stub: _complete_monitor_locking");
+
         }
 
         // StubRoutines
