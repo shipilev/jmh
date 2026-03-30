@@ -85,10 +85,9 @@ public class PerfAsmMethodParsingTest {
 
         String methods = sb.toString();
 
-        if (JDKVersion.parseMajor(System.getProperty("java.version")) >= 22) {
+        if (JDKVersion.parseMajor(System.getProperty("java.version")) >= 11) {
             // These rely on logging available in up-to-date JDKs.
-            // At the time of writing, only JDK 22 contained all these fixes.
-            // TODO: As the relevant JDK updates get backported, consider bumping the versions down.
+            // The relevant logging fixes were backported to at least JDK 11.
 
             // Added by JDK-8316514
             checkFor(methods, "runtime stub: VtableStub vtbl[");
@@ -96,7 +95,7 @@ public class PerfAsmMethodParsingTest {
 
             // Added by JDK-8316178
             checkFor(methods, "runtime stub: ExceptionBlob");
-            checkFor(methods, "runtime stub: _complete_monitor_locking_Java");
+            checkFor(methods, "runtime stub: _complete_monitor_locking");
             checkFor(methods, "runtime stub: StackOverflowError throw_exception");
         }
 
