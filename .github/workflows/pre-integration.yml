@@ -62,7 +62,7 @@ jobs:
         # Yank this once GHA upgrades to 6.17+.
         sudo ln -s \
           /usr/lib/linux-tools/`ls /usr/lib/linux-tools/ | grep generic`/perf \
-          /usr/lib/linux-tools/`uname -r`/perf
+          /usr/lib/linux-tools/`uname -r`/perf || true
         echo -1 | sudo tee /proc/sys/kernel/perf_event_paranoid
         perf stat echo 1
       if: (runner.os == 'Linux')
